@@ -4,12 +4,14 @@ import { MessageCircle } from "lucide-react";
 import CommentForm from "./CommentForm";
 import CommentThread from "./CommentThread";
 import { useComments } from "@/lib/hooks/useComments";
+import { useAuth } from "@/lib/auth";
 
 interface CommentSectionProps {
   requestId: string;
   isExpanded?: boolean;
   onToggle?: () => void;
   commentCount?: number;
+  onShowAuth?: () => void; 
 }
 
 const CommentSection = ({
@@ -17,10 +19,25 @@ const CommentSection = ({
   isExpanded = false,
   onToggle = () => {},
   commentCount = 0,
+  onShowAuth, 
 }: CommentSectionProps) => {
   const { comments, loading, addComment } = useComments(requestId);
+  const { user } = useAuth();
 
   const handleSubmitComment = async (content: string) => {
+    if (!user) {
+      if (onShowAuth) {
+        onShowAuth();
+      } else {
+        const homeElement = document.getElementById('home-auth-dialog');
+        if (homeElement) {
+          const event = new CustomEvent('open-auth-dialog');
+          homeElement.dispatchEvent(event);
+        }
+      }
+      return;
+    }
+
     try {
       await addComment(content);
     } catch (error) {
@@ -29,6 +46,19 @@ const CommentSection = ({
   };
 
   const handleReplyToComment = async (parentId: string, content: string) => {
+    if (!user) {
+      if (onShowAuth) {
+        onShowAuth();
+      } else {
+        const homeElement = document.getElementById('home-auth-dialog');
+        if (homeElement) {
+          const event = new CustomEvent('open-auth-dialog');
+          homeElement.dispatchEvent(event);
+        }
+      }
+      return;
+    }
+
     try {
       await addComment(content, parentId);
     } catch (error) {

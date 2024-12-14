@@ -26,6 +26,29 @@ function Home() {
     useProductRequests(currentSort);
   const { user } = useAuth();
 
+  React.useEffect(() => {
+    console.log('Home component mounted');
+    console.log('User:', user);
+    console.log('Requests:', requests);
+    console.log('Loading:', loading);
+
+    const handleOpenAuthDialog = () => {
+      console.log('Received open-auth-dialog event');
+      setShowAuthDialog(true);
+    };
+
+    const homeAuthDialogElement = document.getElementById('home-auth-dialog');
+    if (homeAuthDialogElement) {
+      homeAuthDialogElement.addEventListener('open-auth-dialog', handleOpenAuthDialog);
+    }
+
+    return () => {
+      if (homeAuthDialogElement) {
+        homeAuthDialogElement.removeEventListener('open-auth-dialog', handleOpenAuthDialog);
+      }
+    };
+  }, [user, requests, loading]);
+
   const handleSortChange = (sortType: "votes" | "newest" | "discussed") => {
     setCurrentSort(sortType);
   };
@@ -95,6 +118,7 @@ function Home() {
                   userVote={request.user_vote}
                   commentCount={request.comment_count}
                   onVote={(direction) => handleVote(request.id, direction)}
+                  onShowAuth={() => setShowAuthDialog(true)}
                 />
               ))}
             </div>
@@ -117,7 +141,7 @@ function Home() {
           onSubmit={handleNewRequest}
         />
 
-        <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
+        <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog} id="home-auth-dialog">
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Sign In / Sign Up</DialogTitle>

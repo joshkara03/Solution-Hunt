@@ -26,7 +26,7 @@ export function useComments(requestId: string) {
         .select(
           `
           *,
-          profiles:user_id (username, avatar_url)
+          profiles!inner(username, avatar_url)
         `,
         )
         .eq("request_id", requestId)
@@ -44,8 +44,8 @@ export function useComments(requestId: string) {
         created_at: comment.created_at,
         parent_id: comment.parent_id,
         author: {
-          name: comment.profiles?.username || comment.user_id,
-          avatar:
+          username: comment.profiles?.username || comment.user_id,
+          avatar_url:
             comment.profiles?.avatar_url ||
             `https://dummyimage.com/150/${Math.floor(Math.random() * 16777215).toString(16)}/ffffff&text=${comment.profiles?.username?.[0]?.toUpperCase() || "A"}`,
         },

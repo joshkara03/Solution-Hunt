@@ -43,7 +43,7 @@ export function Header({ onShowAuth, onShowProfile }: HeaderProps) {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="transition-none">
                 <DropdownMenuItem onClick={onShowProfile}>
                   Edit Profile
                 </DropdownMenuItem>

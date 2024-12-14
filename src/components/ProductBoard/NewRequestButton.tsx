@@ -9,11 +9,11 @@ interface NewRequestButtonProps {
 const NewRequestButton = ({ onClick = () => {} }: NewRequestButtonProps) => {
   return (
     <Button
-      className="fixed bottom-6 right-6 w-[60px] h-[60px] rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
+      className="fixed bottom-6 right-6 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2 px-4 py-3"
       onClick={onClick}
     >
-      <Plus className="h-6 w-6" />
-      <span className="sr-only">New Request</span>
+      <span className="text-sm font-medium">Submit a request</span>
+      <Plus className="h-5 w-5" />
     </Button>
   );
 };
