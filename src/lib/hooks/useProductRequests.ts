@@ -6,7 +6,6 @@ export type ProductRequest = {
   id: string;
   title: string;
   description: string;
-  user_id: string;
   created_at: string;
   tags: string[];
   vote_count?: number;
@@ -27,12 +26,17 @@ export function useProductRequests(
 
   useEffect(() => {
     const fetchRequests = async () => {
-      let query = supabase.from("product_requests").select(`
+      let query = supabase
+        .from("product_requests")
+        .select(
+          `
           *,
           profiles:user_id (username, avatar_url),
           votes (vote_type, user_id),
           comments (count)
-        `);
+        `,
+        )
+        .order("created_at", { ascending: false });
 
       const { data, error } = await query;
 
@@ -49,21 +53,23 @@ export function useProductRequests(
             0,
           ) || 0;
 
+        // Find the user's vote if they're logged in
+        const userVote = user
+          ? request.votes?.find((vote: any) => vote.user_id === user.id)
+          : null;
+
         const commentCount = request.comments?.[0]?.count || 0;
 
         return {
           id: request.id,
           title: request.title,
           description: request.description,
-          user_id: request.user_id,
           created_at: request.created_at,
           tags: request.tags || [],
           vote_count: voteCount,
           comment_count: commentCount,
-          user_vote:
-            request.votes?.find((v: any) => v.user_id === user?.id)
-              ?.vote_type || null,
           author: request.profiles,
+          user_vote: userVote?.vote_type || null,
         };
       });
 
@@ -88,27 +94,37 @@ export function useProductRequests(
     fetchRequests();
 
     // Subscribe to changes
-    const requestsSubscription = supabase
+    const channel = supabase
       .channel("product_requests_changes")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "product_requests" },
-        fetchRequests,
+        { event: "INSERT", schema: "public", table: "product_requests" },
+        () => fetchRequests(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "product_requests" },
+        () => fetchRequests(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "product_requests" },
+        () => fetchRequests(),
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "votes" },
-        fetchRequests,
+        () => fetchRequests(),
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "comments" },
-        fetchRequests,
+        () => fetchRequests(),
       )
       .subscribe();
 
     return () => {
-      requestsSubscription.unsubscribe();
+      channel.unsubscribe();
     };
   }, [sortBy, user?.id]);
 
@@ -117,79 +133,74 @@ export function useProductRequests(
     description: string;
     tags: string[];
   }) => {
-    if (!user) throw new Error("Must be logged in");
-
-    // First create a profile if it doesn't exist
-    const { error: profileError } = await supabase.from("profiles").upsert([
-      {
-        id: user.id,
-        username: user.email?.split("@")[0] || "Anonymous",
-        avatar_url: null,
-      },
-    ]);
-
-    if (profileError) {
-      console.error("Error creating profile:", profileError);
-      throw profileError;
+    if (!user) {
+      throw new Error("Must be logged in to create a request");
     }
 
-    // Then create the request
-    const { data: newRequest, error } = await supabase
-      .from("product_requests")
-      .insert([
-        {
-          title: data.title,
-          description: data.description,
-          tags: data.tags,
-          user_id: user.id,
-        },
-      ])
+    // First ensure the user has a profile
+    const { data: existingProfile } = await supabase
+      .from("profiles")
       .select()
+      .eq("id", user.id)
       .single();
+
+    if (!existingProfile) {
+      const { error: profileError } = await supabase.from("profiles").insert([
+        {
+          id: user.id,
+          username: user.email?.split("@")[0] || "Anonymous",
+          avatar_url: `https://dummyimage.com/150/${Math.floor(
+            Math.random() * 16777215,
+          ).toString(16)}/ffffff&text=${user.email?.[0]?.toUpperCase() || "A"}`,
+        },
+      ]);
+
+      if (profileError) {
+        console.error("Error creating profile:", profileError);
+        throw profileError;
+      }
+    }
+
+    // Create the request
+    const { error } = await supabase.from("product_requests").insert([
+      {
+        title: data.title,
+        description: data.description,
+        tags: data.tags,
+        user_id: user.id,
+      },
+    ]);
 
     if (error) {
       console.error("Error creating request:", error);
       throw error;
     }
-
-    return newRequest;
   };
 
   const vote = async (requestId: string, voteType: "up" | "down") => {
-    if (!user) throw new Error("Must be logged in");
-
-    // First create a profile if it doesn't exist
-    const { error: profileError } = await supabase.from("profiles").upsert([
-      {
-        id: user.id,
-        username: user.email?.split("@")[0] || "Anonymous",
-        avatar_url: null,
-      },
-    ]);
-
-    if (profileError) {
-      console.error("Error creating profile:", profileError);
-      throw profileError;
+    if (!user) {
+      throw new Error("Must be logged in to vote");
     }
 
-    const { data: existingVote } = await supabase
-      .from("votes")
-      .select()
-      .eq("request_id", requestId)
-      .eq("user_id", user.id)
-      .single();
-
     try {
+      // Check if user has already voted
+      const { data: existingVote } = await supabase
+        .from("votes")
+        .select()
+        .eq("request_id", requestId)
+        .eq("user_id", user.id)
+        .single();
+
       if (existingVote) {
         if (existingVote.vote_type === voteType) {
-          // Remove vote if clicking same button
+          // If voting the same way, remove the vote
           await supabase
             .from("votes")
             .delete()
             .eq("request_id", requestId)
             .eq("user_id", user.id);
         } else {
-          // Update vote if changing vote type
+          // If voting differently, update the vote
           await supabase
             .from("votes")
             .update({ vote_type: voteType })
@@ -197,7 +208,7 @@ export function useProductRequests(
             .eq("user_id", user.id);
         }
       } else {
-        // Add new vote
+        // If no existing vote, insert new vote
         await supabase.from("votes").insert([
           {
             request_id: requestId,

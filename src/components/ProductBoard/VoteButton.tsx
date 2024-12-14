@@ -18,7 +18,7 @@ const VoteButton = ({
       <Button
         variant="ghost"
         size="sm"
-        className={`p-0 h-8 hover:bg-muted ${userVote === "up" ? "text-primary" : "text-muted-foreground"}`}
+        className={`p-0 h-8 hover:bg-muted ${userVote === "up" ? "text-blue-500" : "text-muted-foreground"}`}
         onClick={() => onVote("up")}
       >
         <ChevronUp className="h-6 w-6" />
@@ -29,7 +29,7 @@ const VoteButton = ({
       <Button
         variant="ghost"
         size="sm"
-        className={`p-0 h-8 hover:bg-muted ${userVote === "down" ? "text-destructive" : "text-muted-foreground"}`}
+        className={`p-0 h-8 hover:bg-muted ${userVote === "down" ? "text-blue-500" : "text-muted-foreground"}`}
         onClick={() => onVote("down")}
       >
         <ChevronDown className="h-6 w-6" />

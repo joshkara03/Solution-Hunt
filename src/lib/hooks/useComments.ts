@@ -43,7 +43,12 @@ export function useComments(requestId: string) {
         user_id: comment.user_id,
         created_at: comment.created_at,
         parent_id: comment.parent_id,
-        author: comment.profiles,
+        author: {
+          name: comment.profiles?.username || comment.user_id,
+          avatar:
+            comment.profiles?.avatar_url ||
+            `https://dummyimage.com/150/${Math.floor(Math.random() * 16777215).toString(16)}/ffffff&text=${comment.profiles?.username?.[0]?.toUpperCase() || "A"}`,
+        },
       }));
 
       setComments(formattedComments);
@@ -52,8 +57,8 @@ export function useComments(requestId: string) {
 
     fetchComments();
 
-    const commentsSubscription = supabase
-      .channel("comments_changes")
+    const channel = supabase
+      .channel(`comments-${requestId}`)
       .on(
         "postgres_changes",
         {
@@ -67,7 +72,7 @@ export function useComments(requestId: string) {
       .subscribe();
 
     return () => {
-      commentsSubscription.unsubscribe();
+      channel.unsubscribe();
     };
   }, [requestId]);
 
@@ -82,18 +87,28 @@ export function useComments(requestId: string) {
       }
     }
 
-    // First create a profile if it doesn't exist
-    const { error: profileError } = await supabase.from("profiles").upsert([
-      {
-        id: user.id,
-        username: user.email?.split("@")[0] || "Anonymous",
-        avatar_url: null,
-      },
-    ]);
+    // First check if user has a profile
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select()
+      .eq("id", user.id)
+      .single();
 
-    if (profileError) {
-      console.error("Error creating profile:", profileError);
-      throw profileError;
+    if (!existingProfile) {
+      const { error: profileError } = await supabase.from("profiles").insert([
+        {
+          id: user.id,
+          username: user.email?.split("@")[0] || "Anonymous",
+          avatar_url: `https://dummyimage.com/150/${Math.floor(
+            Math.random() * 16777215,
+          ).toString(16)}/ffffff&text=${user.email?.[0]?.toUpperCase() || "A"}`,
+        },
+      ]);
+
+      if (profileError) {
+        console.error("Error creating profile:", profileError);
+        throw profileError;
+      }
     }
 
     const { error } = await supabase.from("comments").insert([
@@ -113,7 +128,13 @@ export function useComments(requestId: string) {
     .filter((comment) => !comment.parent_id) // Get top-level comments
     .map((comment) => ({
       ...comment,
-      replies: comments.filter((reply) => reply.parent_id === comment.id),
+      timestamp: new Date(comment.created_at).toLocaleString(),
+      replies: comments
+        .filter((reply) => reply.parent_id === comment.id)
+        .map((reply) => ({
+          ...reply,
+          timestamp: new Date(reply.created_at).toLocaleString(),
+        })),
     }));
 
   return {

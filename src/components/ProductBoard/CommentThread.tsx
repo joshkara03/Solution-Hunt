@@ -40,6 +40,12 @@ const CommentThread = ({
   };
 
   const renderComment = (comment: Comment, depth = 0) => {
+    const authorName = comment.author?.name || "Anonymous";
+    const authorInitials = authorName
+      .split(" ")
+      .map((n) => n[0])
+      .join("");
+
     return (
       <div
         key={comment.id}
@@ -47,21 +53,13 @@ const CommentThread = ({
       >
         <div className="flex items-start gap-3">
           <Avatar className="h-10 w-10">
-            <AvatarImage
-              src={comment.author.avatar}
-              alt={comment.author.name}
-            />
-            <AvatarFallback>
-              {comment.author.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
-            </AvatarFallback>
+            <AvatarImage src={comment.author?.avatar} alt={authorName} />
+            <AvatarFallback>{authorInitials}</AvatarFallback>
           </Avatar>
 
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <span className="font-semibold">{comment.author.name}</span>
+              <span className="font-semibold">{authorName}</span>
               <span className="text-sm text-muted-foreground">
                 {comment.timestamp}
               </span>
@@ -85,7 +83,7 @@ const CommentThread = ({
               <div className="mt-4">
                 <CommentForm
                   onSubmit={handleSubmitReply}
-                  placeholder={`Reply to thread...`}
+                  placeholder={`Reply to ${authorName}...`}
                 />
               </div>
             )}
