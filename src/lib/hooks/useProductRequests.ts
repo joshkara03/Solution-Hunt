@@ -28,6 +28,7 @@ export type ProductRequest = {
 
 export function useProductRequests(
   sortBy: "votes" | "newest" | "discussed" = "votes",
+  weekOffset: number = 0, // 0 for current week, -1 for last week
 ) {
   const [requests, setRequests] = useState<ProductRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +37,30 @@ export function useProductRequests(
   useEffect(() => {
     const fetchRequests = async () => {
       try {
+        // Calculate the date range for the specified week
+        const now = new Date('2024-12-15T19:18:35-05:00'); // Use the provided reference time
+        
+        // Find the most recent Monday
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
+        startOfWeek.setHours(0, 0, 0, 0);
+        
+        // Adjust for week offset
+        if (weekOffset !== 0) {
+          startOfWeek.setDate(startOfWeek.getDate() + (7 * weekOffset));
+        }
+        
+        // Set end of week (Sunday)
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        console.log(`Fetching requests for week: 
+          Reference Date: ${now.toISOString()}
+          Week Start: ${startOfWeek.toISOString()}
+          Week End: ${endOfWeek.toISOString()}
+          Week Offset: ${weekOffset}`);
+
         let query = supabase
           .from("product_requests")
           .select(
@@ -54,6 +79,8 @@ export function useProductRequests(
           `,
             { count: 'exact' }
           )
+          .gte('created_at', startOfWeek.toISOString())
+          .lte('created_at', endOfWeek.toISOString())
           .order("created_at", { ascending: false });
 
         console.log('Supabase Query:', query);
@@ -116,6 +143,8 @@ export function useProductRequests(
           return 0;
         });
 
+        console.log('Sorted Requests:', sortedRequests);
+
         setRequests(sortedRequests);
         setLoading(false);
       } catch (err) {
@@ -159,7 +188,7 @@ export function useProductRequests(
     return () => {
       channel.unsubscribe();
     };
-  }, [sortBy, user?.id]);
+  }, [sortBy, weekOffset, user?.id]);
 
   const addRequest = async (data: {
     title: string;
