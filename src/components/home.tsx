@@ -141,7 +141,7 @@ function Home() {
           onSubmit={handleNewRequest}
         />
 
-        <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog} id="home-auth-dialog">
+        <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Sign In / Sign Up</DialogTitle>
