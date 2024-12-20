@@ -21,6 +21,7 @@ interface ProductCardProps {
   userVote?: "up" | "down" | null;
   commentCount?: number;
   onVote?: (direction: "up" | "down") => void;
+  onShowAuth?: () => void; // New prop to trigger authentication
 }
 
 const ProductCard = ({
@@ -37,6 +38,7 @@ const ProductCard = ({
   userVote = null,
   commentCount = 5,
   onVote = () => {},
+  onShowAuth, // Add this prop
 }: ProductCardProps) => {
   const [isCommentsExpanded, setIsCommentsExpanded] = React.useState(false);
 
@@ -82,6 +84,7 @@ const ProductCard = ({
         isExpanded={isCommentsExpanded}
         onToggle={() => setIsCommentsExpanded(!isCommentsExpanded)}
         commentCount={commentCount}
+        onShowAuth={onShowAuth} // Pass the auth trigger
       />
     </Card>
   );
