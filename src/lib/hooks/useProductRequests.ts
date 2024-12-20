@@ -28,32 +28,11 @@ export type ProductRequest = {
 
 export function useProductRequests(
   sortBy: "votes" | "newest" | "discussed" = "votes",
+  weekOffset: number = 0, // 0 for current week, -1 for last week
 ) {
   const [requests, setRequests] = useState<ProductRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
-
-  const fetchRequests = async () => {
-    try {
-      let query = supabase
-        .from("product_requests")
-        .select(
-          `
-          *,
-          profiles!inner (username, avatar_url),
-          votes (vote_type, user_id),
-          comments!inner (
-            id,
-            request_id,
-            content,
-            created_at,
-            user_id,
-            profiles!inner (username, avatar_url)
-          )
-        `,
-          { count: 'exact' }
-        )
-        .order("created_at", { ascending: false });
 
       console.log('Supabase Query:', query);
 
@@ -115,13 +94,6 @@ export function useProductRequests(
         return 0;
       });
 
-      setRequests(sortedRequests);
-      setLoading(false);
-    } catch (err) {
-      console.error('Unexpected error in fetchRequests:', err);
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     fetchRequests();
@@ -159,7 +131,7 @@ export function useProductRequests(
     return () => {
       channel.unsubscribe();
     };
-  }, [sortBy, user?.id]);
+  }, [sortBy, weekOffset, user?.id]);
 
   const addRequest = async (data: {
     title: string;
