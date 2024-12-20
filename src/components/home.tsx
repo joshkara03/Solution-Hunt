@@ -8,6 +8,7 @@ import NewRequestButton from "./ProductBoard/NewRequestButton";
 import NewRequestModal from "./ProductBoard/NewRequestModal";
 import LoginForm from "./auth/LoginForm";
 import ProfileForm from "./auth/ProfileForm";
+import { InviteCodeModal } from './InviteCodeModal';
 import {
   Dialog,
   DialogContent,
@@ -19,11 +20,17 @@ function Home() {
   const [currentSort, setCurrentSort] = React.useState<
     "votes" | "newest" | "discussed"
   >("votes");
+  const [lastWeekSort, setLastWeekSort] = React.useState<
+    "votes" | "newest" | "discussed"
+  >("votes");
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [showAuthDialog, setShowAuthDialog] = React.useState(false);
   const [showProfileDialog, setShowProfileDialog] = React.useState(false);
+  const [showInviteCodeModal, setShowInviteCodeModal] = React.useState(false);
   const { requests, loading, addRequest, vote } =
     useProductRequests(currentSort);
+  const { requests: lastWeekRequests, loading: lastWeekLoading } =
+    useProductRequests(lastWeekSort, -1); // Fetch last week's requests
   const { user } = useAuth();
 
   React.useEffect(() => {
@@ -49,8 +56,21 @@ function Home() {
     };
   }, [user, requests, loading]);
 
+  React.useEffect(() => {
+    // Check if invite code has been verified
+    const isInviteCodeVerified = localStorage.getItem('inviteCodeVerified') === 'true';
+    
+    if (!isInviteCodeVerified) {
+      setShowInviteCodeModal(true);
+    }
+  }, []);
+
   const handleSortChange = (sortType: "votes" | "newest" | "discussed") => {
     setCurrentSort(sortType);
+  };
+
+  const handleLastWeekSortChange = (sortType: "votes" | "newest" | "discussed") => {
+    setLastWeekSort(sortType);
   };
 
   const handleVote = async (requestId: string, direction: "up" | "down") => {
@@ -93,6 +113,7 @@ function Home() {
 
       <div className="max-w-4xl mx-auto py-8 px-4">
         <div className="space-y-4">
+          <h2 className="text-2xl font-bold mb-4">Top Ideas this week</h2>
           <SortControls
             currentSort={currentSort}
             onSortChange={handleSortChange}
@@ -103,6 +124,40 @@ function Home() {
           ) : (
             <div className="space-y-4">
               {requests.map((request) => (
+                <ProductCard
+                  key={request.id}
+                  id={request.id}
+                  title={request.title}
+                  description={request.description}
+                  author={{
+                    name: request.author?.username || "Anonymous",
+                    avatar: request.author?.avatar_url,
+                  }}
+                  timestamp={new Date(request.created_at).toLocaleString()}
+                  tags={request.tags}
+                  voteCount={request.vote_count}
+                  userVote={request.user_vote}
+                  commentCount={request.comment_count}
+                  onVote={(direction) => handleVote(request.id, direction)}
+                  onShowAuth={() => setShowAuthDialog(true)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4 mt-10">
+          <h2 className="text-2xl font-bold mb-4">Top Ideas last week</h2>
+          <SortControls
+            currentSort={lastWeekSort}
+            onSortChange={handleLastWeekSortChange}
+          />
+
+          {lastWeekLoading ? (
+            <div className="text-center py-8">Loading...</div>
+          ) : (
+            <div className="space-y-4">
+              {lastWeekRequests.map((request) => (
                 <ProductCard
                   key={request.id}
                   id={request.id}
@@ -158,6 +213,15 @@ function Home() {
             <ProfileForm onSuccess={() => setShowProfileDialog(false)} />
           </DialogContent>
         </Dialog>
+
+        <InviteCodeModal
+          isOpen={showInviteCodeModal}
+          onClose={() => setShowInviteCodeModal(false)}
+          onVerify={() => {
+            localStorage.setItem('inviteCodeVerified', 'true');
+            setShowInviteCodeModal(false);
+          }}
+        />
       </div>
     </div>
   );

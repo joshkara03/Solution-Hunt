@@ -28,6 +28,7 @@ export type ProductRequest = {
 
 export function useProductRequests(
   sortBy: "votes" | "newest" | "discussed" = "votes",
+  weekOffset: number = 0, // 0 for current week, -1 for last week
 ) {
   const [requests, setRequests] = useState<ProductRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,7 +160,7 @@ export function useProductRequests(
     return () => {
       channel.unsubscribe();
     };
-  }, [sortBy, user?.id]);
+  }, [sortBy, weekOffset, user?.id]);
 
   const addRequest = async (data: {
     title: string;
