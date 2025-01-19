@@ -16,9 +16,10 @@ interface ProductCardProps {
   request: ProductRequest;
   onVote?: (voteType: "up" | "down") => void;
   allowVoting?: boolean;
+  onShowAuth: () => void;
 }
 
-export default function ProductCard({ request, onVote, allowVoting = true }: ProductCardProps) {
+export default function ProductCard({ request, onVote, allowVoting = true, onShowAuth }: ProductCardProps) {
   const [isCommentsOpen, setIsCommentsOpen] = React.useState(false);
   const [newComment, setNewComment] = React.useState("");
   const [commentError, setCommentError] = React.useState<string | null>(null);
@@ -26,7 +27,11 @@ export default function ProductCard({ request, onVote, allowVoting = true }: Pro
   const { postComment, comments } = useComments(request.request_id);
 
   const handlePostComment = async () => {
-    if (!user || !newComment.trim()) return;
+    if (!user) {
+      onShowAuth();
+      return;
+    }
+    if (!newComment.trim()) return;
 
     try {
       setCommentError(null);
@@ -38,6 +43,14 @@ export default function ProductCard({ request, onVote, allowVoting = true }: Pro
     }
   };
 
+  const handleCommentsOpen = () => {
+    if (!user) {
+      onShowAuth();
+      return;
+    }
+    setIsCommentsOpen(!isCommentsOpen);
+  };
+
   return (
     <div className="bg-card rounded-lg border border-border/5 shadow-sm">
       <div className="flex items-start gap-4 p-6">
@@ -46,7 +59,13 @@ export default function ProductCard({ request, onVote, allowVoting = true }: Pro
           {allowVoting ? (
             <>
               <button
-                onClick={() => onVote?.("up")}
+                onClick={() => {
+                  if (!user) {
+                    onShowAuth();
+                    return;
+                  }
+                  onVote?.("up");
+                }}
                 className={`flex items-center justify-center h-8 w-8 rounded-md ${
                   request.user_vote === "up" ? "upvote-active" : "vote-inactive"
                 }`}
@@ -55,7 +74,13 @@ export default function ProductCard({ request, onVote, allowVoting = true }: Pro
               </button>
               <span className="text-sm font-medium text-foreground/80">{request.vote_count || 0}</span>
               <button
-                onClick={() => onVote?.("down")}
+                onClick={() => {
+                  if (!user) {
+                    onShowAuth();
+                    return;
+                  }
+                  onVote?.("down");
+                }}
                 className={`flex items-center justify-center h-8 w-8 rounded-md ${
                   request.user_vote === "down" ? "downvote-active" : "vote-inactive"
                 }`}
@@ -105,7 +130,7 @@ export default function ProductCard({ request, onVote, allowVoting = true }: Pro
           {/* Comments section */}
           <Collapsible
             open={isCommentsOpen}
-            onOpenChange={setIsCommentsOpen}
+            onOpenChange={handleCommentsOpen}
           >
             <CollapsibleTrigger asChild>
               <Button 

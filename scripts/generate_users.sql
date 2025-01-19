@@ -1,0 +1,65 @@
+-- Insert 20 users into auth.users table
+INSERT INTO auth.users (
+  instance_id,
+  id,
+  aud,
+  role,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  invited_at,
+  confirmation_token,
+  confirmation_sent_at,
+  recovery_token,
+  recovery_sent_at,
+  email_change_token_new,
+  email_change,
+  email_change_sent_at,
+  last_sign_in_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  is_super_admin,
+  created_at,
+  updated_at,
+  phone,
+  phone_confirmed_at,
+  phone_change,
+  phone_change_token,
+  phone_change_sent_at,
+  email_change_token_current,
+  email_change_confirm_status,
+  banned_until,
+  reauthentication_token,
+  reauthentication_sent_at
+) VALUES
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'sarah.chen@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Sarah Chen"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'alex.kumar@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Alex Kumar"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'emma.wilson@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Emma Wilson"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'james.rodriguez@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "James Rodriguez"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'mia.patel@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Mia Patel"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'noah.kim@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Noah Kim"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'sophia.garcia@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Sophia Garcia"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'lucas.martinez@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Lucas Martinez"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'ava.thompson@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Ava Thompson"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'ethan.nguyen@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Ethan Nguyen"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'olivia.brown@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Olivia Brown"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'liam.taylor@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Liam Taylor"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'isabella.lee@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Isabella Lee"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'mason.wang@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Mason Wang"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'amelia.davis@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Amelia Davis"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'oliver.singh@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Oliver Singh"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'zoe.anderson@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Zoe Anderson"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'william.zhang@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "William Zhang"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'chloe.white@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Chloe White"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL),
+  ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'daniel.cohen@example.com', crypt('password123', gen_salt('bf')), NOW(), NULL, '', NULL, '', NULL, '', '', NULL, NOW(), '{"provider": "email", "providers": ["email"]}', '{"name": "Daniel Cohen"}', false, NOW(), NOW(), NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL);
+
+-- Insert corresponding profiles into public.profiles table
+INSERT INTO public.profiles (user_id, name, avatar_url, created_at, updated_at)
+SELECT 
+  u.id,
+  (u.raw_user_meta_data->>'name'),
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=' || (u.raw_user_meta_data->>'name'),
+  NOW(),
+  NOW()
+FROM auth.users u
+WHERE u.email LIKE '%@example.com';
