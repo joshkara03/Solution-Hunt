@@ -1,17 +1,19 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send } from "lucide-react";
+import { Send, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 interface CommentFormProps {
   onSubmit?: (comment: string) => void;
+  onCancel?: () => void;
   placeholder?: string;
   isSubmitting?: boolean;
 }
 
 const CommentForm = ({
   onSubmit = () => {},
+  onCancel,
   placeholder = "Add a comment...",
   isSubmitting = false,
 }: CommentFormProps) => {
@@ -21,9 +23,7 @@ const CommentForm = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // If no user, trigger the authentication dialog
     if (!user) {
-      // Dispatch the event to open the auth dialog
       const homeElement = document.getElementById('home-auth-dialog');
       if (homeElement) {
         const event = new CustomEvent('open-auth-dialog');
@@ -48,17 +48,28 @@ const CommentForm = ({
         onChange={(e) => setComment(e.target.value)}
         placeholder={placeholder}
         className="min-h-[80px] resize-none"
-        disabled={!user}
+        disabled={!user || isSubmitting}
       />
       {!user && (
         <p className="text-red-500 text-sm">
           Please sign in to leave a comment
         </p>
       )}
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {onCancel && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            <X className="h-4 w-4 mr-2" />
+            Cancel
+          </Button>
+        )}
         <Button
           type="submit"
-          disabled={!comment.trim() || isSubmitting || !user}
+          disabled={!comment.trim() || !user || isSubmitting}
           className="flex items-center gap-2"
         >
           <Send className="h-4 w-4" />

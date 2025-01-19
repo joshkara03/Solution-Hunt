@@ -23,8 +23,7 @@ const formSchema = z.object({
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0)
     )
-    .pipe(z.array(z.string()))
-    .default([]),
+    .pipe(z.array(z.string()).min(1, "At least one tag is required"))
 });
 
 interface NewRequestFormProps {
@@ -42,13 +41,18 @@ export default function NewRequestForm({ onSubmit }: NewRequestFormProps) {
   });
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
-    onSubmit(values);
+    const formattedValues = {
+      title: values.title,
+      description: values.description,
+      tags: values.tags,
+    };
+    onSubmit(formattedValues);
     form.reset();
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
         <FormField
           control={form.control}
           name="title"
@@ -56,7 +60,7 @@ export default function NewRequestForm({ onSubmit }: NewRequestFormProps) {
             <FormItem>
               <FormLabel>Title</FormLabel>
               <FormControl>
-                <Input placeholder="Enter your request title" {...field} />
+                <Input placeholder="Enter a title for your request" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -72,6 +76,7 @@ export default function NewRequestForm({ onSubmit }: NewRequestFormProps) {
               <FormControl>
                 <Textarea
                   placeholder="Describe your request in detail"
+                  className="resize-none"
                   {...field}
                 />
               </FormControl>
@@ -97,9 +102,7 @@ export default function NewRequestForm({ onSubmit }: NewRequestFormProps) {
           )}
         />
 
-        <Button type="submit" className="w-full">
-          Submit Request
-        </Button>
+        <Button type="submit">Submit Request</Button>
       </form>
     </Form>
   );
