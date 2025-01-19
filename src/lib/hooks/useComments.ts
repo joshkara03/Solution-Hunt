@@ -3,7 +3,7 @@ import { supabase } from "../supabase";
 import { useAuth } from "../auth";
 
 export type Comment = {
-  id: string;
+  comment_id: string;
   content: string;
   user_id: string;
   created_at: string;
@@ -25,7 +25,12 @@ export function useComments(requestId: string) {
         .from("comments")
         .select(
           `
-          *,
+          comment_id,
+          content,
+          user_id,
+          created_at,
+          parent_id,
+          request_id,
           profiles!inner(username, avatar_url)
         `,
         )
@@ -38,7 +43,7 @@ export function useComments(requestId: string) {
       }
 
       const formattedComments = data.map((comment: any) => ({
-        id: comment.id,
+        comment_id: comment.comment_id,
         content: comment.content,
         user_id: comment.user_id,
         created_at: comment.created_at,
@@ -57,8 +62,9 @@ export function useComments(requestId: string) {
 
     fetchComments();
 
-    const channel = supabase
-      .channel(`comments-${requestId}`)
+    // Subscribe to new comments
+    const commentsSubscription = supabase
+      .channel("comments_channel")
       .on(
         "postgres_changes",
         {
@@ -67,79 +73,71 @@ export function useComments(requestId: string) {
           table: "comments",
           filter: `request_id=eq.${requestId}`,
         },
-        fetchComments,
+        () => {
+          fetchComments();
+        }
       )
       .subscribe();
 
     return () => {
-      channel.unsubscribe();
+      commentsSubscription.unsubscribe();
     };
   }, [requestId]);
 
-  const addComment = async (content: string, parentId?: string) => {
-    if (!user) throw new Error("Must be logged in");
+  const addComment = async (content: string, parentId: string | null = null) => {
+    if (!user) return;
 
-    // Check if the parent comment exists and is not already a reply
-    if (parentId) {
-      const parentComment = comments.find((c) => c.id === parentId);
-      if (!parentComment || parentComment.parent_id) {
-        throw new Error("Can only reply to top-level comments");
-      }
-    }
-
-    // First check if user has a profile
-    const { data: existingProfile } = await supabase
-      .from("profiles")
-      .select()
-      .eq("id", user.id)
-      .single();
-
-    if (!existingProfile) {
-      const { error: profileError } = await supabase.from("profiles").insert([
+    try {
+      const { error } = await supabase.from("comments").insert([
         {
-          id: user.id,
-          username: user.email?.split("@")[0] || "Anonymous",
-          avatar_url: `https://dummyimage.com/150/${Math.floor(
-            Math.random() * 16777215,
-          ).toString(16)}/ffffff&text=${user.email?.[0]?.toUpperCase() || "A"}`,
+          content,
+          user_id: user.id,
+          request_id: requestId,
+          parent_id: parentId,
         },
       ]);
 
-      if (profileError) {
-        console.error("Error creating profile:", profileError);
-        throw profileError;
-      }
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error adding comment:", error);
     }
-
-    const { error } = await supabase.from("comments").insert([
-      {
-        content,
-        user_id: user.id,
-        request_id: requestId,
-        parent_id: parentId || null,
-      },
-    ]);
-
-    if (error) throw error;
   };
 
-  // Organize comments into threads
-  const threadedComments = comments
-    .filter((comment) => !comment.parent_id) // Get top-level comments
-    .map((comment) => ({
-      ...comment,
-      timestamp: new Date(comment.created_at).toLocaleString(),
-      replies: comments
-        .filter((reply) => reply.parent_id === comment.id)
-        .map((reply) => ({
-          ...reply,
-          timestamp: new Date(reply.created_at).toLocaleString(),
-        })),
-    }));
+  const deleteComment = async (commentId: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("comments")
+        .delete()
+        .match({ comment_id: commentId, user_id: user.id });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+    }
+  };
+
+  const updateComment = async (commentId: string, content: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("comments")
+        .update({ content })
+        .match({ comment_id: commentId, user_id: user.id });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error updating comment:", error);
+    }
+  };
 
   return {
-    comments: threadedComments,
+    comments,
     loading,
     addComment,
+    deleteComment,
+    updateComment,
   };
 }

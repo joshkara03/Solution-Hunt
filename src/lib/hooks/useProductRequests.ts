@@ -3,7 +3,7 @@ import { supabase } from "../supabase";
 import { useAuth } from "../auth";
 
 export type ProductRequest = {
-  id: string;
+  request_id: string;
   title: string;
   description: string;
   created_at: string;
@@ -16,7 +16,7 @@ export type ProductRequest = {
     avatar_url?: string;
   };
   comments?: {
-    id: string;
+    comment_id: string;
     content: string;
     created_at: string;
     author: {
@@ -66,11 +66,15 @@ export function useProductRequests(
         .from("product_requests")
         .select(
           `
-            *,
+            request_id,
+            title,
+            description,
+            created_at,
+            tags,
             profiles (username, avatar_url),
-            votes (vote_type, user_id),
+            votes (vote_id, vote_type, user_id),
             comments (
-              id,
+              comment_id,
               request_id,
               content,
               created_at,
@@ -114,7 +118,7 @@ export function useProductRequests(
           comment_count: request.comments?.length || 0,
           comments:
             request.comments?.map((comment: any) => ({
-              id: comment.id,
+              comment_id: comment.comment_id,
               content: comment.content,
               created_at: comment.created_at,
               author: {
