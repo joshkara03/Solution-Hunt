@@ -21,7 +21,7 @@ const formSchema = z.object({
     str.split(",")
       .map(tag => tag.trim())
       .filter(tag => tag.length > 0)
-  ),
+  ).pipe(z.array(z.string())),
 });
 
 interface NewRequestFormProps {

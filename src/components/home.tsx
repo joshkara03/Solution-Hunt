@@ -1,5 +1,5 @@
 import React from "react";
-import { useProductRequests } from "@/lib/hooks/useProductRequests";
+import { useProductRequests, ProductRequest } from "@/lib/hooks/useProductRequests";
 import { useAuth } from "@/lib/auth";
 import { Header } from "./Header";
 import ProductCard from "./ProductBoard/ProductCard";

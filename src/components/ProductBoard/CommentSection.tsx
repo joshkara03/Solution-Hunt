@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
 import CommentForm from "./CommentForm";
 import CommentThread from "./CommentThread";
-import { useComments } from "@/lib/hooks/useComments";
+import { useComments, Comment } from "@/lib/hooks/useComments";
 import { useAuth } from "@/lib/auth";
 
 interface CommentSectionProps {
@@ -21,7 +21,7 @@ const CommentSection = ({
   commentCount = 0,
   onShowAuth, 
 }: CommentSectionProps) => {
-  const { comments, loading, addComment } = useComments(requestId);
+  const { comments, loading, postComment } = useComments(requestId);
   const { user } = useAuth();
 
   const handleSubmitComment = async (content: string) => {
@@ -39,7 +39,7 @@ const CommentSection = ({
     }
 
     try {
-      await addComment(content);
+      await postComment(content);
     } catch (error) {
       console.error("Error adding comment:", error);
     }
@@ -60,65 +60,52 @@ const CommentSection = ({
     }
 
     try {
-      await addComment(content, parentId);
+      await postComment(content, parentId);
     } catch (error) {
-      console.error("Error adding reply:", error);
+      console.error("Error replying to comment:", error);
     }
   };
 
-  return (
-    <div className="w-full bg-background border-t mt-4">
-      <Button
-        variant="ghost"
-        className="w-full flex items-center justify-center gap-2 py-2 hover:bg-muted"
+  if (!isExpanded) {
+    return (
+      <Button 
+        variant="ghost" 
+        className="w-full justify-start gap-2 hover:bg-secondary/50 -mx-2 px-2"
         onClick={onToggle}
       >
         <MessageCircle className="h-4 w-4" />
-        <span className="text-sm">
-          {isExpanded ? "Hide Comments" : `Show Comments (${commentCount})`}
-        </span>
+        <span className="text-muted-foreground">{commentCount} Comments</span>
       </Button>
+    );
+  }
 
-      {isExpanded && (
-        <div className="p-4 space-y-4">
-          <CommentForm
-            onSubmit={handleSubmitComment}
-            placeholder="What are your thoughts?"
+  const topLevelComments = comments.filter(comment => !comment.parent_id);
+
+  return (
+    <div className="space-y-4">
+      <CommentForm onSubmit={handleSubmitComment} />
+      
+      <div className="space-y-6">
+        {topLevelComments.map((comment) => (
+          <CommentThread
+            key={comment.comment_id}
+            comment={comment}
+            comments={comments}
+            onReply={handleReplyToComment}
+            onShowAuth={onShowAuth}
           />
-          {loading ? (
-            <div className="text-center py-4">Loading comments...</div>
-          ) : (
-            <div className="space-y-6">
-              {comments.map((comment) => (
-                <CommentThread
-                  key={comment.id}
-                  comments={[
-                    {
-                      id: comment.id,
-                      content: comment.content,
-                      author: {
-                        name: comment.author.username,
-                        avatar: comment.author.avatar_url,
-                      },
-                      timestamp: new Date(comment.created_at).toLocaleString(),
-                      replies: comment.replies?.map((reply) => ({
-                        id: reply.id,
-                        content: reply.content,
-                        author: {
-                          name: reply.author.username,
-                          avatar: reply.author.avatar_url,
-                        },
-                        timestamp: new Date(reply.created_at).toLocaleString(),
-                      })),
-                    },
-                  ]}
-                  onReply={handleReplyToComment}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        ))}
+        
+        {loading ? (
+          <div className="text-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+          </div>
+        ) : comments.length === 0 ? (
+          <div className="text-center text-muted-foreground py-4">
+            No comments yet. Be the first to comment!
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 };
