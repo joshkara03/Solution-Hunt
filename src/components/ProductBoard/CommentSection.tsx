@@ -28,12 +28,6 @@ const CommentSection = ({
     if (!user) {
       if (onShowAuth) {
         onShowAuth();
-      } else {
-        const homeElement = document.getElementById('home-auth-dialog');
-        if (homeElement) {
-          const event = new CustomEvent('open-auth-dialog');
-          homeElement.dispatchEvent(event);
-        }
       }
       return;
     }
@@ -42,27 +36,6 @@ const CommentSection = ({
       await postComment(content);
     } catch (error) {
       console.error("Error adding comment:", error);
-    }
-  };
-
-  const handleReplyToComment = async (parentId: string, content: string) => {
-    if (!user) {
-      if (onShowAuth) {
-        onShowAuth();
-      } else {
-        const homeElement = document.getElementById('home-auth-dialog');
-        if (homeElement) {
-          const event = new CustomEvent('open-auth-dialog');
-          homeElement.dispatchEvent(event);
-        }
-      }
-      return;
-    }
-
-    try {
-      await postComment(content, parentId);
-    } catch (error) {
-      console.error("Error replying to comment:", error);
     }
   };
 
@@ -83,7 +56,13 @@ const CommentSection = ({
 
   return (
     <div className="space-y-4">
-      <CommentForm onSubmit={handleSubmitComment} />
+      {user ? (
+        <CommentForm onSubmit={handleSubmitComment} />
+      ) : (
+        <div className="text-center text-muted-foreground py-2">
+          Please sign in to comment
+        </div>
+      )}
       
       <div className="space-y-6">
         {topLevelComments.map((comment) => (
@@ -91,7 +70,15 @@ const CommentSection = ({
             key={comment.comment_id}
             comment={comment}
             comments={comments}
-            onReply={handleReplyToComment}
+            onReply={async (parentId, content) => {
+              if (!user) {
+                if (onShowAuth) {
+                  onShowAuth();
+                }
+                return;
+              }
+              await postComment(content);
+            }}
             onShowAuth={onShowAuth}
           />
         ))}

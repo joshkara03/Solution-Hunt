@@ -43,7 +43,7 @@ type Comment = {
   content: string;
   created_at: string;
   user_id: string;
-  profiles?: Profile;
+  profiles?: Profile[];
 };
 
 type ProductRequestRaw = {
@@ -53,13 +53,13 @@ type ProductRequestRaw = {
   created_at: string;
   tags: string[];
   user_id: string;
-  profiles?: Profile;
+  profiles?: Profile[];
   votes?: Vote[];
   comments?: Comment[];
 };
 
 export type TimeFilter = "all_time" | "this_week";
-export type SortBy = "votes" | "newest";
+export type SortBy = "votes" | "recent";
 
 export function useProductRequests(timeFilter: TimeFilter = "all_time", sortBy: SortBy = "votes") {
   const [requests, setRequests] = useState<ProductRequest[]>([]);
@@ -80,7 +80,7 @@ export function useProductRequests(timeFilter: TimeFilter = "all_time", sortBy: 
           created_at,
           tags,
           user_id,
-          profiles!user_id (
+          profiles (
             username,
             avatar_url
           ),
@@ -94,29 +94,20 @@ export function useProductRequests(timeFilter: TimeFilter = "all_time", sortBy: 
             content,
             created_at,
             user_id,
-            profiles!user_id (
+            profiles (
               username,
               avatar_url
             )
           )
         `);
 
-      // Apply time filter
       if (timeFilter === "this_week") {
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        query = query.gte('created_at', oneWeekAgo.toISOString());
+        query = query.gte("created_at", oneWeekAgo.toISOString());
       }
 
-      // Apply sorting
-      if (sortBy === "votes") {
-        // We'll sort by votes after fetching since we need to calculate the vote count
-        query = query.order('created_at', { ascending: false });
-      } else {
-        query = query.order('created_at', { ascending: false });
-      }
-
-      const { data, error: fetchError } = await query;
+      const { data: rawRequests, error: fetchError } = await query;
 
       if (fetchError) {
         console.error("Error fetching requests:", fetchError);
@@ -124,51 +115,46 @@ export function useProductRequests(timeFilter: TimeFilter = "all_time", sortBy: 
         return;
       }
 
-      const formattedRequests = (data as ProductRequestRaw[] || []).map((request) => {
-        const voteCount =
-          request.votes?.reduce(
-            (acc, vote) =>
-              vote.vote_type === "up" ? acc + 1 : acc - 1,
-            0
-          ) || 0;
-
-        const userVote = user
-          ? request.votes?.find((v) => v.user_id === user.id)?.vote_type || null
-          : null;
+      const requests = (rawRequests as ProductRequestRaw[]).map((request) => {
+        const upvotes = request.votes?.filter((v) => v.vote_type === "up").length || 0;
+        const downvotes = request.votes?.filter((v) => v.vote_type === "down").length || 0;
+        const userVote = request.votes?.find((v) => v.user_id === user?.id)?.vote_type || null;
 
         return {
           request_id: request.request_id,
           title: request.title,
           description: request.description,
           created_at: request.created_at,
-          tags: request.tags || [],
+          tags: request.tags,
           user_id: request.user_id,
-          vote_count: voteCount,
-          user_vote: userVote,
-          author: {
-            username: request.profiles?.username || "Anonymous",
-            avatar_url: request.profiles?.avatar_url,
-          },
+          vote_count: upvotes - downvotes,
           comment_count: request.comments?.length || 0,
-          comments:
-            request.comments?.map((comment) => ({
-              comment_id: comment.comment_id,
-              content: comment.content,
-              created_at: comment.created_at,
-              author: {
-                username: comment.profiles?.username || "Anonymous",
-                avatar_url: comment.profiles?.avatar_url,
-              },
-            })) || [],
+          user_vote: userVote,
+          author: request.profiles?.[0] ? {
+            username: request.profiles[0].username,
+            avatar_url: request.profiles[0].avatar_url,
+          } : undefined,
+          comments: request.comments?.map((comment) => ({
+            comment_id: comment.comment_id,
+            content: comment.content,
+            created_at: comment.created_at,
+            author: comment.profiles?.[0] ? {
+              username: comment.profiles[0].username,
+              avatar_url: comment.profiles[0].avatar_url,
+            } : {
+              username: "Anonymous",
+              avatar_url: undefined,
+            },
+          })),
         };
       });
 
       // Sort by votes if needed
       if (sortBy === "votes") {
-        formattedRequests.sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0));
+        requests.sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0));
       }
 
-      setRequests(formattedRequests);
+      setRequests(requests);
     } catch (err) {
       console.error("Unexpected error in fetchRequests:", err);
       setError(err instanceof Error ? err.message : "An unexpected error occurred");

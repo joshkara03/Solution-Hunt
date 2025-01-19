@@ -17,38 +17,22 @@ import { AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
 import CommentForm from "./CommentForm";
-
-/**
- * Comment Interface
- * Defines the structure of a comment object with nested replies support
- * 
- * @property {string} id - Unique identifier for the comment
- * @property {Object} author - Author details
- * @property {string} content - Text content of the comment
- * @property {string} timestamp - When the comment was created
- * @property {Comment[]} [replies] - Optional nested replies
- */
-interface Comment {
-  id: string;
-  author: {
-    name: string;
-    avatar?: string;
-  };
-  content: string;
-  timestamp: string;
-  replies?: Comment[];
-}
+import { Comment } from "@/lib/hooks/useComments";
 
 /**
  * CommentThreadProps Interface
  * Defines the props expected by the CommentThread component
  * 
- * @property {Comment[]} [comments] - Optional array of comments to display
- * @property {Function} [onReply] - Optional callback for handling comment replies
+ * @property {Comment} comment - The comment to render
+ * @property {Comment[]} comments - The list of comments to display
+ * @property {Function} onReply - Callback for handling comment replies
+ * @property {Function} [onShowAuth] - Optional callback for showing authentication
  */
 interface CommentThreadProps {
-  comments?: Comment[];
-  onReply?: (commentId: string, content: string) => void;
+  comment: Comment;
+  comments: Comment[];
+  onReply: (parentId: string, content: string) => void;
+  onShowAuth?: () => void;
 }
 
 /**
@@ -59,108 +43,81 @@ interface CommentThreadProps {
  * @returns {React.ReactElement} Rendered comment thread
  */
 const CommentThread = ({
-  comments = [], // Default to empty array if no comments provided
-  onReply = () => {}, // Default no-op function if no reply handler provided
+  comment,
+  comments,
+  onReply,
+  onShowAuth,
 }: CommentThreadProps) => {
-  // State to track which comment is currently being replied to
-  const [replyingTo, setReplyingTo] = React.useState<string | null>(null);
+  // State to track whether the user is currently replying
+  const [isReplying, setIsReplying] = React.useState(false);
+
+  // Filter replies to the current comment
+  const replies = comments.filter((c) => c.parent_id === comment.comment_id);
 
   /**
    * Handles submission of a reply
    * 
    * @param {string} content - Content of the reply
-   * @description Always replies to the main comment (first comment in the thread)
    */
-  const handleSubmitReply = (content: string) => {
-    if (replyingTo) {
-      // Always reply to the main comment
-      const mainCommentId = comments[0]?.id;
-      if (mainCommentId) {
-        onReply(mainCommentId, content);
-        setReplyingTo(null); // Reset replying state after submission
-      }
-    }
+  const handleReply = (content: string) => {
+    onReply(comment.comment_id, content);
+    setIsReplying(false); // Reset replying state after submission
   };
 
-  /**
-   * Recursively renders a comment and its nested replies
-   * 
-   * @param {Comment} comment - Comment to render
-   * @param {number} [depth=0] - Depth of the comment in the thread (for indentation)
-   * @returns {React.ReactElement} Rendered comment with potential nested replies
-   */
-  const renderComment = (comment: Comment, depth = 0) => {
-    // Generate fallback initials if no name provided
-    const authorName = comment.author?.name || "Anonymous";
-    const authorInitials = authorName
-      .split(" ")
-      .map((n) => n[0])
-      .join("");
-
-    return (
-      <div
-        key={comment.id}
-        // Indent nested comments with left margin
-        className={`w-full bg-background p-4 rounded-lg space-y-2 ${depth > 0 ? "ml-8" : ""}`}
-      >
-        <div className="flex items-start gap-3">
-          {/* Avatar with image or fallback initials */}
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={comment.author?.avatar} alt={authorName} />
-            <AvatarFallback>{authorInitials}</AvatarFallback>
-          </Avatar>
-
-          <div className="flex-1">
-            {/* Author name and timestamp */}
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">{authorName}</span>
-              <span className="text-sm text-muted-foreground">
-                {comment.timestamp}
-              </span>
-            </div>
-
-            {/* Comment content */}
-            <p className="mt-1 text-sm">{comment.content}</p>
-
-            {/* Reply button */}
-            <div className="flex items-center gap-4 mt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex items-center gap-1 text-muted-foreground hover:text-primary"
-                onClick={() => setReplyingTo(comment.id)}
-              >
-                <MessageSquare className="h-4 w-4" />
-                Reply
-              </Button>
-            </div>
-
-            {/* Inline comment form when replying */}
-            {replyingTo === comment.id && (
-              <div className="mt-4">
-                <CommentForm
-                  onSubmit={handleSubmitReply}
-                  placeholder={`Reply to ${authorName}...`}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Recursively render nested replies */}
-        {comment.replies && comment.replies.length > 0 && (
-          <div className="mt-4 space-y-4">
-            {comment.replies.map((reply) => renderComment(reply, depth + 1))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Render the entire comment thread
   return (
-    <div className="w-full space-y-4">
-      {comments.map((comment) => renderComment(comment))}
+    <div className="space-y-4">
+      <div className="flex gap-4">
+        <Avatar className="h-8 w-8">
+          <AvatarImage src={comment.author.avatar_url} />
+          <AvatarFallback>
+            {comment.author.username[0]?.toUpperCase() || "A"}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-medium">{comment.author.username}</span>
+            <span className="text-sm text-muted-foreground">
+              {new Date(comment.created_at).toLocaleDateString()}
+            </span>
+          </div>
+
+          <p className="text-sm text-foreground/90">{comment.content}</p>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2"
+            onClick={() => setIsReplying(!isReplying)}
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Reply
+          </Button>
+        </div>
+      </div>
+
+      {isReplying && (
+        <div className="ml-12">
+          <CommentForm
+            onSubmit={handleReply}
+            onCancel={() => setIsReplying(false)}
+          />
+        </div>
+      )}
+
+      {replies.length > 0 && (
+        <div className="ml-12 space-y-4">
+          {replies.map((reply) => (
+            <CommentThread
+              key={reply.comment_id}
+              comment={reply}
+              comments={comments}
+              onReply={onReply}
+              onShowAuth={onShowAuth}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

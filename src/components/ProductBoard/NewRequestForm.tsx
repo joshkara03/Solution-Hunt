@@ -17,11 +17,14 @@ import { Textarea } from "@/components/ui/textarea";
 const formSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Title is too long"),
   description: z.string().min(1, "Description is required").max(500, "Description is too long"),
-  tags: z.string().transform((str) => 
-    str.split(",")
-      .map(tag => tag.trim())
-      .filter(tag => tag.length > 0)
-  ).pipe(z.array(z.string())),
+  tags: z.string()
+    .transform((str) => 
+      str.split(",")
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0)
+    )
+    .pipe(z.array(z.string()))
+    .default([]),
 });
 
 interface NewRequestFormProps {
@@ -39,11 +42,7 @@ export default function NewRequestForm({ onSubmit }: NewRequestFormProps) {
   });
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
-    onSubmit({
-      title: values.title,
-      description: values.description,
-      tags: values.tags,
-    });
+    onSubmit(values);
     form.reset();
   };
 
