@@ -26,12 +26,18 @@ const formSchema = z.object({
     .pipe(z.array(z.string()).min(1, "At least one tag is required"))
 });
 
+type FormValues = {
+  title: string;
+  description: string;
+  tags: string;
+};
+
 interface NewRequestFormProps {
   onSubmit: (data: { title: string; description: string; tags: string[] }) => void;
 }
 
 export default function NewRequestForm({ onSubmit }: NewRequestFormProps) {
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
@@ -40,11 +46,12 @@ export default function NewRequestForm({ onSubmit }: NewRequestFormProps) {
     },
   });
 
-  const handleSubmit = (values: z.infer<typeof formSchema>) => {
+  const handleSubmit = (values: FormValues) => {
+    // The zod transform will convert the tags string to an array
     const formattedValues = {
       title: values.title,
       description: values.description,
-      tags: values.tags,
+      tags: formSchema.shape.tags.parse(values.tags),
     };
     onSubmit(formattedValues);
     form.reset();
