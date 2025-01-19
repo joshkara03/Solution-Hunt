@@ -8,6 +8,7 @@ export type ProductRequest = {
   description: string;
   created_at: string;
   tags: string[];
+  user_id: string;
   vote_count?: number;
   comment_count?: number;
   user_vote?: "up" | "down" | null;
@@ -26,89 +27,122 @@ export type ProductRequest = {
   }[];
 };
 
-// Changed local-based function to use UTC logic.
-function getMondayUTC(date: Date): Date {
-  const newDate = new Date(date);
-  const day = newDate.getUTCDay() === 0 ? 7 : newDate.getUTCDay();
-  // Move "day - 1" days backward, so we land on Monday at 00:00 UTC.
-  newDate.setUTCDate(newDate.getUTCDate() - (day - 1));
-  newDate.setUTCHours(0, 0, 0, 0);
-  return newDate;
-}
+type Profile = {
+  username: string;
+  avatar_url?: string;
+};
 
-// Returns the start (Monday 00:00 UTC) and end (Sunday 23:59:59 UTC) of the desired week.
-function getWeekRangeUTC(weekOffset: number) {
-  const todayUTC = new Date();
-  const monday = getMondayUTC(todayUTC);
-  monday.setUTCDate(monday.getUTCDate() + 7 * weekOffset);
-  const sunday = new Date(monday);
-  sunday.setUTCDate(sunday.getUTCDate() + 6);
-  sunday.setUTCHours(23, 59, 59, 999);
-  return { start: monday, end: sunday };
-}
+type Vote = {
+  vote_id: string;
+  vote_type: "up" | "down";
+  user_id: string;
+};
 
-export function useProductRequests(
-  sortBy: "votes" | "newest" | "discussed" = "votes",
-  weekOffset: number = 0 // 0 = current week, -1 = last week, etc.
-) {
+type Comment = {
+  comment_id: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+  profiles?: Profile;
+};
+
+type ProductRequestRaw = {
+  request_id: string;
+  title: string;
+  description: string;
+  created_at: string;
+  tags: string[];
+  user_id: string;
+  profiles?: Profile;
+  votes?: Vote[];
+  comments?: Comment[];
+};
+
+export type TimeFilter = "all_time" | "this_week";
+export type SortBy = "votes" | "newest";
+
+export function useProductRequests(timeFilter: TimeFilter = "all_time", sortBy: SortBy = "votes") {
   const [requests, setRequests] = useState<ProductRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
   const fetchRequests = async () => {
     setLoading(true);
+    setError(null);
     try {
-      // Calculate Monday–Sunday window in UTC
-      const { start, end } = getWeekRangeUTC(weekOffset);
-
-      // Removed "!inner" on profiles and comments for LEFT JOIN behavior
-      const { data, error } = await supabase
+      let query = supabase
         .from("product_requests")
-        .select(
-          `
-            request_id,
-            title,
-            description,
+        .select(`
+          request_id,
+          title,
+          description,
+          created_at,
+          tags,
+          user_id,
+          profiles!user_id (
+            username,
+            avatar_url
+          ),
+          votes (
+            vote_id,
+            vote_type,
+            user_id
+          ),
+          comments (
+            comment_id,
+            content,
             created_at,
-            tags,
-            profiles (username, avatar_url),
-            votes (vote_id, vote_type, user_id),
-            comments (
-              comment_id,
-              request_id,
-              content,
-              created_at,
-              user_id,
-              profiles (username, avatar_url)
+            user_id,
+            profiles!user_id (
+              username,
+              avatar_url
             )
-          `,
-          { count: "exact" }
-        )
-        .gte("created_at", start.toISOString())
-        .lte("created_at", end.toISOString())
-        .order("created_at", { ascending: false });
+          )
+        `);
 
-      if (error) {
-        console.error("Error fetching requests:", error);
-        setLoading(false);
+      // Apply time filter
+      if (timeFilter === "this_week") {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        query = query.gte('created_at', oneWeekAgo.toISOString());
+      }
+
+      // Apply sorting
+      if (sortBy === "votes") {
+        // We'll sort by votes after fetching since we need to calculate the vote count
+        query = query.order('created_at', { ascending: false });
+      } else {
+        query = query.order('created_at', { ascending: false });
+      }
+
+      const { data, error: fetchError } = await query;
+
+      if (fetchError) {
+        console.error("Error fetching requests:", fetchError);
+        setError(fetchError.message);
         return;
       }
 
-      const formattedRequests = (data || []).map((request: any) => {
+      const formattedRequests = (data as ProductRequestRaw[] || []).map((request) => {
         const voteCount =
           request.votes?.reduce(
-            (acc: number, vote: any) =>
+            (acc, vote) =>
               vote.vote_type === "up" ? acc + 1 : acc - 1,
             0
           ) || 0;
 
-        // If there's a logged-in user, find their vote
         const userVote = user
-          ? request.votes?.find((v: any) => v.user_id === user.id)?.vote_type || null
+          ? request.votes?.find((v) => v.user_id === user.id)?.vote_type || null
           : null;
 
         return {
-          ...request,
+          request_id: request.request_id,
+          title: request.title,
+          description: request.description,
+          created_at: request.created_at,
+          tags: request.tags || [],
+          user_id: request.user_id,
           vote_count: voteCount,
           user_vote: userVote,
           author: {
@@ -117,7 +151,7 @@ export function useProductRequests(
           },
           comment_count: request.comments?.length || 0,
           comments:
-            request.comments?.map((comment: any) => ({
+            request.comments?.map((comment) => ({
               comment_id: comment.comment_id,
               content: comment.content,
               created_at: comment.created_at,
@@ -129,105 +163,17 @@ export function useProductRequests(
         };
       });
 
-      // Sort the results
-      const sortedRequests = [...formattedRequests].sort((a, b) => {
-        if (sortBy === "votes") {
-          return (b.vote_count || 0) - (a.vote_count || 0);
-        } else if (sortBy === "newest") {
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        } else if (sortBy === "discussed") {
-          return (b.comment_count || 0) - (a.comment_count || 0);
-        }
-        return 0;
-      });
+      // Sort by votes if needed
+      if (sortBy === "votes") {
+        formattedRequests.sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0));
+      }
 
-      setRequests(sortedRequests);
-      setLoading(false);
+      setRequests(formattedRequests);
     } catch (err) {
       console.error("Unexpected error in fetchRequests:", err);
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+    } finally {
       setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchRequests();
-
-    // Subscribe to changes in product_requests, votes, comments
-    const channel = supabase
-      .channel("product_requests_changes")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "product_requests" },
-        fetchRequests
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "product_requests" },
-        fetchRequests
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "product_requests" },
-        fetchRequests
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "votes" },
-        fetchRequests
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "comments" },
-        fetchRequests
-      )
-      .subscribe();
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [sortBy, weekOffset, user?.id]);
-
-  const addRequest = async (data: { title: string; description: string; tags: string[] }) => {
-    if (!user) {
-      throw new Error("Must be logged in to create a request");
-    }
-
-    // Ensure user has a profile
-    const { data: existingProfile } = await supabase
-      .from("profiles")
-      .select()
-      .eq("id", user.id)
-      .single();
-
-    if (!existingProfile) {
-      const { error: profileError } = await supabase.from("profiles").insert([
-        {
-          id: user.id,
-          username: user.email?.split("@")[0] || "Anonymous",
-          avatar_url: `https://dummyimage.com/150/${Math.floor(
-            Math.random() * 16777215
-          ).toString(16)}/ffffff&text=${user.email?.[0]?.toUpperCase() || "A"}`,
-        },
-      ]);
-      if (profileError) {
-        console.error("Error creating profile:", profileError);
-        throw profileError;
-      }
-    }
-
-    // Create the request
-    const { error } = await supabase.from("product_requests").insert([
-      {
-        title: data.title,
-        description: data.description,
-        tags: data.tags,
-        user_id: user.id,
-      },
-    ]);
-
-    if (error) {
-      console.error("Error creating request:", error);
-      throw error;
     }
   };
 
@@ -240,29 +186,27 @@ export function useProductRequests(
       // Check if user has already voted
       const { data: existingVote } = await supabase
         .from("votes")
-        .select()
+        .select("vote_id, vote_type")
         .eq("request_id", requestId)
         .eq("user_id", user.id)
         .single();
 
       if (existingVote) {
         if (existingVote.vote_type === voteType) {
-          // If the vote is the same, remove it
+          // Remove vote if clicking the same button
           await supabase
             .from("votes")
             .delete()
-            .eq("request_id", requestId)
-            .eq("user_id", user.id);
+            .eq("vote_id", existingVote.vote_id);
         } else {
-          // Otherwise update the vote
+          // Change vote if clicking different button
           await supabase
             .from("votes")
             .update({ vote_type: voteType })
-            .eq("request_id", requestId)
-            .eq("user_id", user.id);
+            .eq("vote_id", existingVote.vote_id);
         }
       } else {
-        // Insert a new vote
+        // Create new vote
         await supabase.from("votes").insert([
           {
             request_id: requestId,
@@ -271,39 +215,87 @@ export function useProductRequests(
           },
         ]);
       }
-    } catch (error) {
-      console.error("Error voting:", error);
-      throw error;
-    }
-  };
-
-  const postComment = async (requestId: string, content: string) => {
-    if (!user) {
-      throw new Error("Must be logged in to comment");
-    }
-    try {
-      const { error } = await supabase.from("comments").insert([
-        {
-          request_id: requestId,
-          user_id: user.id,
-          content,
-        },
-      ]);
-      if (error) {
-        console.error("Error posting comment:", error);
-        throw error;
-      }
     } catch (err) {
-      console.error("Comment posting failed:", err);
+      console.error("Error voting:", err);
       throw err;
     }
   };
 
+  const createRequest = async (data: { title: string; description: string; tags: string[] }) => {
+    if (!user) {
+      throw new Error("Must be logged in to create a request");
+    }
+
+    try {
+      const { error } = await supabase.from("product_requests").insert([
+        {
+          title: data.title,
+          description: data.description,
+          tags: data.tags,
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error("Error creating request:", err);
+      throw err;
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+
+    // Create a channel for each table we want to listen to
+    const requestsChannel = supabase
+      .channel("product_requests")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "product_requests" },
+        () => {
+          console.log("Product requests changed");
+          fetchRequests();
+        }
+      )
+      .subscribe();
+
+    const votesChannel = supabase
+      .channel("votes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "votes" },
+        () => {
+          console.log("Votes changed");
+          fetchRequests();
+        }
+      )
+      .subscribe();
+
+    const commentsChannel = supabase
+      .channel("comments")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "comments" },
+        () => {
+          console.log("Comments changed");
+          fetchRequests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      requestsChannel.unsubscribe();
+      votesChannel.unsubscribe();
+      commentsChannel.unsubscribe();
+    };
+  }, [user, timeFilter, sortBy]);
+
   return {
     requests,
     loading,
-    addRequest,
+    error,
     vote,
-    postComment,
+    createRequest,
   };
 }

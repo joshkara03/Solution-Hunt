@@ -2,227 +2,183 @@ import React from "react";
 import { useProductRequests } from "@/lib/hooks/useProductRequests";
 import { useAuth } from "@/lib/auth";
 import { Header } from "./Header";
-import SortControls from "./ProductBoard/SortControls";
 import ProductCard from "./ProductBoard/ProductCard";
-import NewRequestButton from "./ProductBoard/NewRequestButton";
-import NewRequestModal from "./ProductBoard/NewRequestModal";
-import LoginForm from "./auth/LoginForm";
-import ProfileForm from "./auth/ProfileForm";
-import { InviteCodeModal } from './InviteCodeModal';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import NewRequestForm from "./ProductBoard/NewRequestForm";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function Home() {
-  const [currentSort, setCurrentSort] = React.useState<
-    "votes" | "newest" | "discussed"
-  >("votes");
-  const [lastWeekSort, setLastWeekSort] = React.useState<
-    "votes" | "newest" | "discussed"
-  >("votes");
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [showAuthDialog, setShowAuthDialog] = React.useState(false);
-  const [showProfileDialog, setShowProfileDialog] = React.useState(false);
-  const [showInviteCodeModal, setShowInviteCodeModal] = React.useState(false);
-  const { requests, loading, addRequest, vote } =
-    useProductRequests(currentSort);
-  const { requests: lastWeekRequests, loading: lastWeekLoading } =
-    useProductRequests(lastWeekSort, -1); // Fetch last week's requests
   const { user } = useAuth();
 
-  React.useEffect(() => {
-    console.log('Home component mounted');
-    console.log('User:', user);
-    console.log('Requests:', requests);
-    console.log('Loading:', loading);
+  // All-time top requests
+  const {
+    requests: allTimeRequests,
+    loading: allTimeLoading,
+    error: allTimeError,
+    vote: allTimeVote,
+    createRequest
+  } = useProductRequests("all_time", "votes");
 
-    const handleOpenAuthDialog = () => {
-      console.log('Received open-auth-dialog event');
-      setShowAuthDialog(true);
-    };
+  // This week's top requests
+  const {
+    requests: weeklyRequests,
+    loading: weeklyLoading,
+    error: weeklyError,
+    vote: weeklyVote
+  } = useProductRequests("this_week", "votes");
 
-    const homeAuthDialogElement = document.getElementById('home-auth-dialog');
-    if (homeAuthDialogElement) {
-      homeAuthDialogElement.addEventListener('open-auth-dialog', handleOpenAuthDialog);
-    }
-
-    return () => {
-      if (homeAuthDialogElement) {
-        homeAuthDialogElement.removeEventListener('open-auth-dialog', handleOpenAuthDialog);
-      }
-    };
-  }, [user, requests, loading]);
-
-  React.useEffect(() => {
-    // Check if invite code has been verified
-    const isInviteCodeVerified = localStorage.getItem('inviteCodeVerified') === 'true';
-    
-    if (!isInviteCodeVerified) {
-      setShowInviteCodeModal(true);
-    }
-  }, []);
-
-  const handleSortChange = (sortType: "votes" | "newest" | "discussed") => {
-    setCurrentSort(sortType);
-  };
-
-  const handleLastWeekSortChange = (sortType: "votes" | "newest" | "discussed") => {
-    setLastWeekSort(sortType);
-  };
-
-  const handleVote = async (requestId: string, direction: "up" | "down") => {
+  const handleVote = async (requestId: string, voteType: "up" | "down", isWeekly: boolean) => {
     if (!user) {
       setShowAuthDialog(true);
       return;
     }
 
     try {
-      await vote(requestId, direction);
+      if (isWeekly) {
+        await weeklyVote(requestId, voteType);
+      } else {
+        await allTimeVote(requestId, voteType);
+      }
     } catch (error) {
       console.error("Error voting:", error);
     }
   };
 
-  const handleNewRequest = async (data: {
-    title: string;
-    description: string;
-    tags: string[];
-  }) => {
+  const handleCreateRequest = async (data: { title: string; description: string; tags: string[] }) => {
     if (!user) {
       setShowAuthDialog(true);
       return;
     }
 
     try {
-      await addRequest(data);
+      await createRequest(data);
       setIsModalOpen(false);
     } catch (error) {
       console.error("Error creating request:", error);
     }
   };
 
-  return (
-    <div className="min-h-screen w-full bg-background">
-      <Header
-        onShowAuth={() => setShowAuthDialog(true)}
-        onShowProfile={() => setShowProfileDialog(true)}
-      />
-
-      <div className="max-w-4xl mx-auto py-8 px-4">
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold mb-4">Top Ideas this week</h2>
-          <SortControls
-            currentSort={currentSort}
-            onSortChange={handleSortChange}
-          />
-
-          {loading ? (
-            <div className="text-center py-8">Loading...</div>
-          ) : (
-            <div className="space-y-4">
-              {requests.map((request) => (
-                <ProductCard
-                  key={request.id}
-                  id={request.id}
-                  title={request.title}
-                  description={request.description}
-                  author={{
-                    name: request.author?.username || "Anonymous",
-                    avatar: request.author?.avatar_url,
-                  }}
-                  timestamp={new Date(request.created_at).toLocaleString()}
-                  tags={request.tags}
-                  voteCount={request.vote_count}
-                  userVote={request.user_vote}
-                  commentCount={request.comment_count}
-                  onVote={(direction) => handleVote(request.id, direction)}
-                  onShowAuth={() => setShowAuthDialog(true)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-4 mt-10">
-          <h2 className="text-2xl font-bold mb-4">Top Ideas last week</h2>
-          <SortControls
-            currentSort={lastWeekSort}
-            onSortChange={handleLastWeekSortChange}
-          />
-
-          {lastWeekLoading ? (
-            <div className="text-center py-8">Loading...</div>
-          ) : (
-            <div className="space-y-4">
-              {lastWeekRequests.map((request) => (
-                <ProductCard
-                  key={request.id}
-                  id={request.id}
-                  title={request.title}
-                  description={request.description}
-                  author={{
-                    name: request.author?.username || "Anonymous",
-                    avatar: request.author?.avatar_url,
-                  }}
-                  timestamp={new Date(request.created_at).toLocaleString()}
-                  tags={request.tags}
-                  voteCount={request.vote_count}
-                  userVote={request.user_vote}
-                  commentCount={request.comment_count}
-                  onVote={(direction) => handleVote(request.id, direction)}
-                  onShowAuth={() => setShowAuthDialog(true)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <NewRequestButton
-          onClick={() => {
-            if (user) {
-              setIsModalOpen(true);
-            } else {
-              setShowAuthDialog(true);
-            }
-          }}
-        />
-
-        <NewRequestModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onSubmit={handleNewRequest}
-        />
-
-        <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Sign In / Sign Up</DialogTitle>
-            </DialogHeader>
-            <LoginForm onSuccess={() => setShowAuthDialog(false)} />
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Profile</DialogTitle>
-            </DialogHeader>
-            <ProfileForm onSuccess={() => setShowProfileDialog(false)} />
-          </DialogContent>
-        </Dialog>
-
-        <InviteCodeModal
-          isOpen={showInviteCodeModal}
-          onClose={() => setShowInviteCodeModal(false)}
-          onVerify={() => {
-            localStorage.setItem('inviteCodeVerified', 'true');
-            setShowInviteCodeModal(false);
-          }}
-        />
+  if (allTimeLoading && weeklyLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </main>
       </div>
+    );
+  }
+
+  if (allTimeError || weeklyError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <Alert variant="destructive">
+            <AlertDescription>
+              {allTimeError || weeklyError}
+            </AlertDescription>
+          </Alert>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="container mx-auto px-4 py-8 space-y-8">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary/80 to-primary bg-clip-text text-transparent">
+            Product Requests
+          </h1>
+          <Button
+            onClick={() => {
+              if (user) {
+                setIsModalOpen(true);
+              } else {
+                setShowAuthDialog(true);
+              }
+            }}
+            className="hover-lift"
+          >
+            New Request
+          </Button>
+        </div>
+
+        <Tabs defaultValue="this_week" className="space-y-6">
+          <TabsList className="w-full justify-start border-b rounded-none p-0 h-auto bg-transparent">
+            <TabsTrigger 
+              value="this_week"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 pb-2"
+            >
+              This Week's Top
+            </TabsTrigger>
+            <TabsTrigger 
+              value="all_time"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 pb-2"
+            >
+              All Time Top
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="this_week" className="space-y-4 animate-fade">
+            {weeklyRequests.length === 0 ? (
+              <div className="text-center text-muted-foreground py-12">
+                No requests this week. Be the first to create one!
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {weeklyRequests.map((request) => (
+                  <ProductCard
+                    key={request.request_id}
+                    request={request}
+                    onVote={(voteType) => handleVote(request.request_id, voteType, true)}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="all_time" className="space-y-4 animate-fade">
+            {allTimeRequests.length === 0 ? (
+              <div className="text-center text-muted-foreground py-12">
+                No requests found. Be the first to create one!
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {allTimeRequests.map((request) => (
+                  <ProductCard
+                    key={request.request_id}
+                    request={request}
+                    allowVoting={false}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent className="sm:max-w-[600px] bg-card">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold">New Product Request</DialogTitle>
+            </DialogHeader>
+            <NewRequestForm onSubmit={handleCreateRequest} />
+          </DialogContent>
+        </Dialog>
+      </main>
     </div>
   );
 }

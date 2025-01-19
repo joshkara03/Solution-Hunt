@@ -19,21 +19,22 @@ export function useComments(requestId: string) {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  useEffect(() => {
-    const fetchComments = async () => {
+  const fetchComments = async () => {
+    try {
+      console.log("Fetching comments for request:", requestId);
       const { data, error } = await supabase
         .from("comments")
-        .select(
-          `
+        .select(`
           comment_id,
           content,
           user_id,
           created_at,
           parent_id,
-          request_id,
-          profiles!inner(username, avatar_url)
-        `,
-        )
+          profiles:user_id (
+            username,
+            avatar_url
+          )
+        `)
         .eq("request_id", requestId)
         .order("created_at", { ascending: true });
 
@@ -42,102 +43,92 @@ export function useComments(requestId: string) {
         return;
       }
 
-      const formattedComments = data.map((comment: any) => ({
-        comment_id: comment.comment_id,
-        content: comment.content,
-        user_id: comment.user_id,
-        created_at: comment.created_at,
-        parent_id: comment.parent_id,
-        author: {
-          username: comment.profiles?.username || comment.user_id,
-          avatar_url:
-            comment.profiles?.avatar_url ||
-            `https://dummyimage.com/150/${Math.floor(Math.random() * 16777215).toString(16)}/ffffff&text=${comment.profiles?.username?.[0]?.toUpperCase() || "A"}`,
-        },
-      }));
+      console.log("Raw comments data:", data);
 
+      const formattedComments = data.map((comment: any) => {
+        console.log("Processing comment:", comment);
+        return {
+          comment_id: comment.comment_id,
+          content: comment.content,
+          user_id: comment.user_id,
+          created_at: comment.created_at,
+          parent_id: comment.parent_id,
+          author: {
+            username: comment.profiles?.username || "Anonymous",
+            avatar_url: comment.profiles?.avatar_url,
+          },
+        };
+      });
+
+      console.log("Formatted comments:", formattedComments);
       setComments(formattedComments);
       setLoading(false);
-    };
+    } catch (error) {
+      console.error("Error in fetchComments:", error);
+    }
+  };
 
-    fetchComments();
+  useEffect(() => {
+    if (requestId) {
+      fetchComments();
 
-    // Subscribe to new comments
-    const commentsSubscription = supabase
-      .channel("comments_channel")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "comments",
-          filter: `request_id=eq.${requestId}`,
-        },
-        () => {
-          fetchComments();
-        }
-      )
-      .subscribe();
+      const commentsChannel = supabase
+        .channel("comments")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "comments",
+            filter: `request_id=eq.${requestId}`,
+          },
+          (payload) => {
+            console.log("Comments changed, payload:", payload);
+            fetchComments();
+          }
+        )
+        .subscribe();
 
-    return () => {
-      commentsSubscription.unsubscribe();
-    };
+      return () => {
+        commentsChannel.unsubscribe();
+      };
+    }
   }, [requestId]);
 
-  const addComment = async (content: string, parentId: string | null = null) => {
-    if (!user) return;
+  const postComment = async (content: string) => {
+    if (!user || !content.trim()) {
+      throw new Error("Must be logged in to comment");
+    }
 
     try {
-      const { error } = await supabase.from("comments").insert([
+      console.log("Posting comment:", {
+        content,
+        user_id: user.id,
+        request_id: requestId,
+      });
+
+      const { data, error } = await supabase.from("comments").insert([
         {
-          content,
+          content: content,
           user_id: user.id,
           request_id: requestId,
-          parent_id: parentId,
         },
-      ]);
+      ]).select();
 
       if (error) throw error;
+
+      console.log("Posted comment response:", data);
+      // Fetch updated comments
+      fetchComments();
     } catch (error) {
-      console.error("Error adding comment:", error);
-    }
-  };
-
-  const deleteComment = async (commentId: string) => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from("comments")
-        .delete()
-        .match({ comment_id: commentId, user_id: user.id });
-
-      if (error) throw error;
-    } catch (error) {
-      console.error("Error deleting comment:", error);
-    }
-  };
-
-  const updateComment = async (commentId: string, content: string) => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from("comments")
-        .update({ content })
-        .match({ comment_id: commentId, user_id: user.id });
-
-      if (error) throw error;
-    } catch (error) {
-      console.error("Error updating comment:", error);
+      console.error("Error posting comment:", error);
+      throw error;
     }
   };
 
   return {
     comments,
     loading,
-    addComment,
-    deleteComment,
-    updateComment,
+    postComment,
   };
 }
