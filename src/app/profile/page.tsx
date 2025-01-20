@@ -4,18 +4,16 @@ import { useProfile } from "@/lib/hooks/useProfile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
 export default function ProfilePage() {
   const { profile, updateProfile } = useProfile();
   const [username, setUsername] = useState(profile?.username || "");
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
   const { user } = useAuth();
 
   if (!user) {
-    router.push("/");
+    window.location.href = "/";
     return null;
   }
 
@@ -25,7 +23,7 @@ export default function ProfilePage() {
 
     try {
       await updateProfile({ username });
-      router.push("/");
+      window.location.href = "/";
     } catch (error) {
       console.error("Error updating profile:", error);
       alert("Failed to update profile");
@@ -59,7 +57,7 @@ export default function ProfilePage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push("/")}
+            onClick={() => window.location.href = "/"}
           >
             Cancel
           </Button>

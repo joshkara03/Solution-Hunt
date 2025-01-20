@@ -43,7 +43,7 @@ type Comment = {
   content: string;
   created_at: string;
   user_id: string;
-  profiles?: Profile[];
+  profiles?: Profile;
 };
 
 type ProductRequestRaw = {
@@ -53,7 +53,7 @@ type ProductRequestRaw = {
   created_at: string;
   tags: string[];
   user_id: string;
-  profiles?: Profile[];
+  profiles?: Profile;
   votes?: Vote[];
   comments?: Comment[];
 };
