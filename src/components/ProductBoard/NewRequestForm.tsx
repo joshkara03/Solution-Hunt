@@ -17,13 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 const formSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Title is too long"),
   description: z.string().min(1, "Description is required").max(500, "Description is too long"),
-  tags: z.string()
-    .transform((str) => 
-      str.split(",")
-        .map(tag => tag.trim())
-        .filter(tag => tag.length > 0)
-    )
-    .pipe(z.array(z.string()).min(1, "At least one tag is required"))
+  tags: z.string().min(1, "Tags are required")
 });
 
 type FormValues = {
@@ -47,11 +41,15 @@ export default function NewRequestForm({ onSubmit }: NewRequestFormProps) {
   });
 
   const handleSubmit = (values: FormValues) => {
-    // The zod transform will convert the tags string to an array
+    const tags = values.tags
+      .split(",")
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0);
+
     const formattedValues = {
       title: values.title,
       description: values.description,
-      tags: formSchema.shape.tags.parse(values.tags),
+      tags: tags,
     };
     onSubmit(formattedValues);
     form.reset();

@@ -208,24 +208,40 @@ export function useProductRequests(timeFilter: TimeFilter = "all_time", sortBy: 
   };
 
   const createRequest = async (data: { title: string; description: string; tags: string[] }) => {
+    console.log("Starting createRequest with user:", user);
+    console.log("Request data:", data);
+
     if (!user) {
+      console.error("No user found when trying to create request");
       throw new Error("Must be logged in to create a request");
     }
 
     try {
-      const { error } = await supabase.from("product_requests").insert([
-        {
-          title: data.title,
-          description: data.description,
-          tags: data.tags,
-          user_id: user.id,
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      const requestData = {
+        title: data.title,
+        description: data.description,
+        tags: data.tags,
+        user_id: user.id,
+        created_at: new Date().toISOString(),
+      };
+      
+      console.log("Attempting to insert request:", requestData);
+      
+      const { data: insertedData, error } = await supabase
+        .from("product_requests")
+        .insert([requestData])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error creating request:", error);
+        throw error;
+      }
+
+      console.log("Successfully created request:", insertedData);
+      return insertedData;
     } catch (err) {
-      console.error("Error creating request:", err);
+      console.error("Error in createRequest:", err);
       throw err;
     }
   };
