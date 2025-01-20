@@ -43,7 +43,7 @@ type Comment = {
   content: string;
   created_at: string;
   user_id: string;
-  profiles?: Profile;
+  profiles: Profile;
 };
 
 type ProductRequestRaw = {
@@ -53,9 +53,9 @@ type ProductRequestRaw = {
   created_at: string;
   tags: string[];
   user_id: string;
-  profiles?: Profile;
-  votes?: Vote[];
-  comments?: Comment[];
+  profiles: Profile;
+  votes: Vote[];
+  comments: Comment[];
 };
 
 export type TimeFilter = "all_time" | "this_week";
@@ -115,10 +115,11 @@ export function useProductRequests(timeFilter: TimeFilter = "all_time", sortBy: 
         return;
       }
 
-      const requests = (rawRequests as ProductRequestRaw[]).map((request) => {
-        const upvotes = request.votes?.filter((v) => v.vote_type === "up").length || 0;
-        const downvotes = request.votes?.filter((v) => v.vote_type === "down").length || 0;
-        const userVote = request.votes?.find((v) => v.user_id === user?.id)?.vote_type || null;
+      // Type assertion for rawRequests since Supabase types don't match exactly
+      const requests = (rawRequests as any[]).map((request): ProductRequest => {
+        const upvotes = request.votes?.filter((v: Vote) => v.vote_type === "up").length || 0;
+        const downvotes = request.votes?.filter((v: Vote) => v.vote_type === "down").length || 0;
+        const userVote = request.votes?.find((v: Vote) => v.user_id === user?.id)?.vote_type || null;
 
         return {
           request_id: request.request_id,
@@ -130,11 +131,11 @@ export function useProductRequests(timeFilter: TimeFilter = "all_time", sortBy: 
           vote_count: upvotes - downvotes,
           comment_count: request.comments?.length || 0,
           user_vote: userVote,
-          author: {
-            username: request.profiles?.username || "Anonymous",
-            avatar_url: request.profiles?.avatar_url,
-          },
-          comments: request.comments?.map((comment) => ({
+          author: request.profiles ? {
+            username: request.profiles.username || "Anonymous",
+            avatar_url: request.profiles.avatar_url,
+          } : undefined,
+          comments: request.comments?.map((comment: any) => ({
             comment_id: comment.comment_id,
             content: comment.content,
             created_at: comment.created_at,
