@@ -24,7 +24,7 @@ export function useProfile() {
       const { data, error } = await supabase
         .from("profiles")
         .select()
-        .eq("id", user.id)
+        .eq("user_id", user.id)
         .single();
 
       if (error) {
@@ -46,7 +46,7 @@ export function useProfile() {
           event: "*",
           schema: "public",
           table: "profiles",
-          filter: `id=eq.${user.id}`,
+          filter: `user_id=eq.${user.id}`,
         },
         fetchProfile,
       )
@@ -65,7 +65,7 @@ export function useProfile() {
 
     const { error } = await supabase.from("profiles").upsert([
       {
-        id: user.id,
+        user_id: user.id,
         ...updates,
       },
     ]);

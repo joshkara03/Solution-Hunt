@@ -80,7 +80,7 @@ export function useProductRequests(timeFilter: TimeFilter = "all_time", sortBy: 
           created_at,
           tags,
           user_id,
-          profiles (
+          profiles!product_requests_user_id_fkey (
             username,
             avatar_url
           ),
@@ -94,7 +94,7 @@ export function useProductRequests(timeFilter: TimeFilter = "all_time", sortBy: 
             content,
             created_at,
             user_id,
-            profiles (
+            profiles!comments_user_id_fkey (
               username,
               avatar_url
             )
@@ -130,20 +130,17 @@ export function useProductRequests(timeFilter: TimeFilter = "all_time", sortBy: 
           vote_count: upvotes - downvotes,
           comment_count: request.comments?.length || 0,
           user_vote: userVote,
-          author: request.profiles?.[0] ? {
-            username: request.profiles[0].username,
-            avatar_url: request.profiles[0].avatar_url,
-          } : undefined,
+          author: {
+            username: request.profiles?.username || "Anonymous",
+            avatar_url: request.profiles?.avatar_url,
+          },
           comments: request.comments?.map((comment) => ({
             comment_id: comment.comment_id,
             content: comment.content,
             created_at: comment.created_at,
-            author: comment.profiles?.[0] ? {
-              username: comment.profiles[0].username,
-              avatar_url: comment.profiles[0].avatar_url,
-            } : {
-              username: "Anonymous",
-              avatar_url: undefined,
+            author: {
+              username: comment.profiles?.username || "Anonymous",
+              avatar_url: comment.profiles?.avatar_url,
             },
           })),
         };
